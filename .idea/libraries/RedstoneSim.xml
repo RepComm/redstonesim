@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="RedstoneSim">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/dist/RedstoneSim.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
