@@ -2,6 +2,8 @@
 
 A 2d sandbox for creating redstone-like circuits for no reason
 
+![img](./example.png)
+
 Implemented classes:
 - Chunk
 - ChunkRenderer
