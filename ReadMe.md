@@ -8,6 +8,7 @@ Implemented classes:
 - Chunk
 - ChunkRenderer
 - Vec2
+- JSON
 
 Implemented functionality:
 - Basic UI
@@ -16,3 +17,4 @@ Implemented functionality:
 - Efficient voxel storage
 - Voxel place/break
 - Mouse hover voxel outline
+- JSON.parse and JSON.stringify
