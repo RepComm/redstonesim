@@ -2,8 +2,6 @@ package comm.rep.json;
 
 import java.util.*;
 
-import static comm.rep.json.JSON.ParseMode.*;
-import static comm.rep.json.Lexer.TokenType.*;
 import static comm.rep.json.Lexer.lex;
 
 public class JSON {
@@ -49,17 +47,13 @@ public class JSON {
     public JsonNumber (double n) {
       this.value = n;
     }
+    public JsonNumber (String s) {
+      this.value = Double.parseDouble(s);
+    }
     @Override
     public String toString() {
       return Double.toString(this.value);
     }
-  }
-  
-  public enum ParseMode {
-    OPEN, //looking for {, [, or ], }
-    STRING_KEY, //looking for "..." before :
-    ASSIGN, //looking for :
-    VALUE, //looking for "...", 0-9, { or [
   }
   
   public static String stringify (JsonValue v) {
@@ -102,92 +96,21 @@ public class JSON {
     return sb.toString();
   }
   
-  public static JsonValue parse (String src) {
+  public static Parser PARSER = new Parser();
+  
+  public static JsonValue parse (String src) throws Exception {
     var tokens = lex(src);
     
-    JsonValue result = null;
+    var tokensArray = new Lexer.Token[tokens.size()];
     
-    var stack = new Stack<JsonValue>();
+    tokens.toArray(tokensArray);
     
-    String currentKey = null;
+//    int i=0;
+//    for (var t : tokensArray) {
+//      System.out.printf("%d '%s' ", i, t);
+//      i++;
+//    }
     
-    var currentMode = ParseMode.OPEN;
-    
-    int len = tokens.size();
-    Lexer.Token t;
-    
-    JsonValue parent;
-    JsonValue value;
-    
-    for (int i=0; i<len; i++) {
-      t = tokens.get(i);
-      
-      switch (currentMode) {
-        case OPEN:
-          if (t.is("{")) {
-            stack.push(new JsonObject());
-            currentMode = STRING_KEY;
-          } else if (t.is("[")) {
-            stack.push(new JsonArray());
-            currentMode = VALUE;
-          } else if (t.is(COMMA)) {
-            currentMode = STRING_KEY;
-          } else if (t.is("}")) {
-            result = stack.pop();
-          } else if (t.is("]")) {
-            result = stack.pop();
-          } else {
-            System.err.printf("Mode: %s, Unexpected Token: %s\n", currentMode, t);
-          }
-          break;
-        case STRING_KEY:
-          if (t.is(STRING)) {
-            currentKey = t.toString();
-            currentMode = ASSIGN;
-          } else {
-            System.err.printf("Mode: %s, Unexpected Token: %s\n", currentMode, t);
-          }
-          break;
-        case ASSIGN:
-          if (t.is(":")) {
-            currentMode = VALUE;
-          } else {
-            System.err.printf("Mode: %s, Unexpected Token: %s\n", currentMode, t);
-          }
-          break;
-        case VALUE:
-          parent = stack.lastElement();
-          
-          if (t.is(STRING)) {
-            value = new JsonString(t.toString());
-          } else if (t.is(NUMBER)) {
-            value = new JsonNumber(Double.parseDouble(t.toString()));
-          } else if (t.is("[")) {
-            value = new JsonArray();
-            stack.push(value);
-            currentMode = VALUE;
-          } else {
-            value = null;
-            System.err.printf("Mode: %s, cannot assign token content as value: %s\n", currentMode, t);
-          }
-          
-          if (parent instanceof JsonArray) {
-            ((JsonArray) parent).items.add(value);
-            currentMode = OPEN;
-          } else if (parent instanceof JsonObject) {
-            if (currentKey == null) {
-              System.err.printf("Mode: %s, cannot assign token as key: %s", currentMode, t);
-            }
-            ((JsonObject) parent).kvPairs.put(currentKey, value);
-            currentMode = OPEN;
-          } else {
-            System.err.printf("Mode: %s, cannot assign value to object or array, last object in stack was not object or array: %s", currentMode, parent);
-          }
-          break;
-      }
-      
-    }
-    
-    return result;
+    return PARSER.parse(tokensArray);
   }
 }

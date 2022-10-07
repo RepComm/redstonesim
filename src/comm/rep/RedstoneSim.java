@@ -13,6 +13,7 @@ import java.awt.image.BufferedImage;
 
 import static comm.rep.ui.MouseHandler.EventType.MOUSE_CLICKED;
 import static comm.rep.ui.MouseHandler.mouseListen;
+import static java.lang.System.out;
 
 public class RedstoneSim {
   
@@ -40,10 +41,22 @@ public class RedstoneSim {
         .set(e.getX(), e.getY())
         .div(r.renderScale);
     });
-  
-    JSON.JsonValue json = JSON.parse("{ \"key\":\"value\", \"nums\": [123] }");
     
-    System.out.println(JSON.stringify(json));
+    try {
+      
+      //source text
+      String src = "{ \"key\":\"value\", \"nums\": { \"ints\":[1,2,3,4,5,6,7] } }";
+      
+      //parse
+      var json = JSON.parse(src);
+      
+      //stringify
+      String dst = JSON.stringify(json);
+      
+      //log
+      out.printf("Source : %s\nOutput : %s", src, dst);
+      
+    } catch (Exception e) { System.err.println(e); }
     
     for (byte i=0; i<r.cr.blockSize(); i++) {
       final byte fi = i;
