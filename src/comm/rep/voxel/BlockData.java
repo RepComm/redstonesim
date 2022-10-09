@@ -1,9 +1,11 @@
 
 package comm.rep.voxel;
 
-class BlockData {
-    byte type;
-    byte data;
-    static int byteLength = 2;
+public class BlockData {
+  public int index;
+  
+  public byte type;
+  public byte data;
+  static int byteLength = 2;
 }
     

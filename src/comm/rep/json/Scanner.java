@@ -107,7 +107,6 @@ public class Scanner {
   
   public static void advance (State s, Output o) {
     s.offset += o.successfulReadCount;
-//    s.offset = o.contentEnd;
   }
   
 }

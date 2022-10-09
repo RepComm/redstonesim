@@ -55,8 +55,6 @@ public class Lexer {
     var o = new Scanner.Output();
     
     while (s.offset < s.srcLength) {
-//      System.out.printf("Offset %d of %d\n", s.offset, s.srcLength);
-      
       whitespace(s, o); //ignore whitespace
       if (success(o)) advance(s, o);
       
