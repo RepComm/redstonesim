@@ -94,6 +94,12 @@ public class Parser {
     } else if (peeked.is(Lexer.TokenType.NUMBER)) {
       this.stack.push(new JSON.JsonNumber(peeked.toString()));
       this.next();
+    } else if (peeked.is("true")) {
+      this.stack.push(new JSON.JsonBoolean(true));
+      this.next();
+    } else if (peeked.is("false")) {
+      this.stack.push(new JSON.JsonBoolean(false));
+      this.next();
     }
   }
   public void child () {

@@ -1,0 +1,57 @@
+{
+  "blocks": [
+    {
+      "label": "air",
+      "isDraggable": false
+    },
+    {
+      "label": "redstone",
+      "images": [
+        "/images/block-rsb.png"
+      ],
+      "isSource": true,
+      "power": {
+        "self": true,
+        "default": 1
+      }
+    },
+    {
+      "label": "wire",
+      "images": [
+        "/images/block-wire.png"
+      ],
+      "isLine": true
+    },
+    {
+      "label": "note",
+      "images": [
+        "/images/block-note.png"
+      ],
+      "isLine": true
+    },
+    {
+      "label": "lever",
+      "images": [
+        "/images/block-lever-off.png",
+        "/images/block-lever.png"
+      ],
+      "isSource": true,
+      "power": {
+        "self": true,
+        "default": 0,
+        "min": 0,
+        "max": 1,
+        "increment": 1,
+        "clickToChange": true
+      }
+    },
+    {
+      "label": "light",
+      "images": [
+        "/images/block-light-off.png",
+        "/images/block-light.png"
+      ],
+      "isLine": true
+    }
+  ]
+}

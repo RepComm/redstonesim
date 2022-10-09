@@ -2,6 +2,7 @@
 package comm.rep.ui;
 
 import comm.rep.AddQueue;
+import comm.rep.math.MathEx;
 import comm.rep.math.Vec2;
 import comm.rep.voxel.*;
 
@@ -11,6 +12,7 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
@@ -24,6 +26,7 @@ public class Renderer extends JPanel {
   public Chunk c;
   
   BlockData calcBlock;
+  BlockInfo calcBlockInfo;
   BlockData dragBlock;
   BlockInfo dragBlockInfo;
   
@@ -31,6 +34,8 @@ public class Renderer extends JPanel {
   public BasicStroke strokeStyle;
   
   public Vec2 selected;
+  public Vec2 dragPos;
+  public Vec2 dragPosTarget;
   
   public Vec2 renderSize;
   public Vec2 renderScale;
@@ -43,6 +48,8 @@ public class Renderer extends JPanel {
   private List<Integer> visited;
   private AddQueue<Integer> toVisit;
   private Neighbors neighbors;
+  
+  public ContextEx ctx;
   
   public Renderer () {
     super();
@@ -64,6 +71,8 @@ public class Renderer extends JPanel {
     this.dragBlock = new BlockData();
 //    this.dragBlockInfo
     this.isDragging = false;
+    this.dragPos = new Vec2();
+    this.dragPosTarget = new Vec2();
     
     this.strokeStyle = new BasicStroke(0.1f);
     
@@ -71,6 +80,8 @@ public class Renderer extends JPanel {
     
     this.visited = new ArrayList();
     this.neighbors = new Neighbors();
+    
+    this.ctx = new ContextEx();
     
     mouseListen(this, (t, e)->{
       this.selected.set(e.getX(), e.getY());
@@ -89,21 +100,24 @@ public class Renderer extends JPanel {
       }
       
       if (t == MouseHandler.EventType.MOUSE_PRESSED) {
+        this.dragPos.copy(this.selected).floor();
+        
         this.c.get(
-          (int)this.selected.x,
-          (int)this.selected.y,
+          (int)this.dragPos.x,
+          (int)this.dragPos.y,
           this.dragBlock
         );
         this.dragBlockInfo = this.cr.getBlockInfo(this.dragBlock.type);
+        
       }
       if (t == MouseHandler.EventType.MOUSE_DRAGGED) {
-        if (!this.isDragging) {
+        if (!this.isDragging && this.dragBlockInfo.isDraggable) {
           this.isDragging = true;
           this.c.set(this.dragBlock.index, (byte) 0, (byte) 0);
         }
       }
       if (t == MouseHandler.EventType.MOUSE_RELEASED) {
-        if (this.isDragging) {
+        if (this.isDragging && this.dragBlockInfo.isDraggable) {
           this.isDragging = false;
           int x = (int) this.selected.x;
           int y = (int) this.selected.y;
@@ -113,17 +127,19 @@ public class Renderer extends JPanel {
     });
   }
   
+  Rectangle bounds;
+  
   @Override
   protected void paintComponent(Graphics g) {
-    Graphics2D ctx = (Graphics2D)g;
+    this.ctx.ctx = (Graphics2D) g;
     
-    Rectangle r = this.getBounds();
+    ctx.save();
     
-    ctx.clearRect(0, 0, r.width, r.height);
+    this.bounds = this.getBounds();
     
-    AffineTransform t = ctx.getTransform();
+    ctx.clearRect(0, 0, bounds.width, bounds.height);
     
-    this.renderSize.set(r.width, r.height);
+    this.renderSize.set(bounds.width, bounds.height);
     this.aspectRatio = this.renderSize.ratio();
     
     this.viewSize.y = this.viewSize.x * this.aspectRatio;
@@ -135,18 +151,34 @@ public class Renderer extends JPanel {
     ctx.setStroke(this.strokeStyle);
     
     if (this.isDragging) {
-      AffineTransform t2 = ctx.getTransform();
-      
-      float sx = 1f/(float)this.dragBlockInfo.image.getWidth();
-      float sy = 1f/(float)this.dragBlockInfo.image.getHeight();
+      ctx.save();
   
-      ctx.translate(
-        (int)this.selected.x,
-        (int)this.selected.y
-      );
-      ctx.scale(sx, sy);
-      ctx.drawImage(this.dragBlockInfo.image, 0, 0, null);
-      ctx.setTransform(t2);
+      BufferedImage img = this.dragBlockInfo.getImage(this.dragBlock.data);
+      if (this.dragBlockInfo.isDraggable && img != null) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+  
+        float sx = 1f / w;
+        float sy = 1f / h;
+        
+        this.dragPosTarget.copy(this.selected).floor();
+        
+        this.dragPos.lerp(
+          this.dragPosTarget,
+          0.5f
+        );
+  
+        ctx.scale(sx, sy);
+  
+        ctx.translate(
+          (int) (this.dragPos.x / sx),
+          (int) (this.dragPos.y / sy)
+        );
+  
+        ctx.drawImage(img);
+  
+        ctx.restore();
+      }
     } else {
   
       this.selectedShape.setRect(
@@ -159,24 +191,20 @@ public class Renderer extends JPanel {
     
     this.cr.render(ctx, this.c);
     
-    ctx.setTransform(t);
+    ctx.restore();
     
-  }
-  
-  public boolean isSource (BlockData d) {
-    return d.type == 1;
-  }
-  public boolean isLine (BlockData d) {
-    return d.type == 2;
   }
   
   public boolean hasVisited (BlockData d) {
     return this.visited.contains(d.index);
   }
-  public boolean shouldVisit(BlockData d) {
-    return d.index > -1 && isLine(d) && !this.hasVisited(d);
+  public boolean shouldVisit(BlockData d, BlockInfo b) {
+    return d.index > -1 && b.isLine && !this.hasVisited(d);
   }
   
+  public BlockInfo info (BlockData d) {
+    return this.cr.getBlockInfo(d.type);
+  }
   public void propagate () {
     //reset
     this.visited.clear();
@@ -186,11 +214,12 @@ public class Renderer extends JPanel {
     int len = this.c.width*this.c.height;
     for (int idx=0; idx<len; idx++) {
       this.c.get(idx, this.calcBlock);
+      this.calcBlockInfo = info(this.calcBlock);
       
-      if (isLine(this.calcBlock)) { //clear redstone level
+      if (this.calcBlockInfo.isLine) { //clear redstone level
         this.calcBlock.data = 0;
         this.c.set(idx, this.calcBlock);
-      } else if (isSource(this.calcBlock)) { //schedule a visit to source nodes
+      } else if (this.calcBlockInfo.isSource) { //schedule a visit to source nodes
         this.toVisit.add(idx);
       }
       
@@ -217,10 +246,35 @@ public class Renderer extends JPanel {
   
       //check should visit first (stops infinite queue addition)
       //schedule a visit if isLine and not visited already
-      if (shouldVisit(this.neighbors.top)) this.toVisit.add(this.neighbors.top.index);
-      if (shouldVisit(this.neighbors.bottom)) this.toVisit.add(this.neighbors.bottom.index);
-      if (shouldVisit(this.neighbors.left)) this.toVisit.add(this.neighbors.left.index);
-      if (shouldVisit(this.neighbors.right)) this.toVisit.add(this.neighbors.right.index);
+      
+      this.calcBlockInfo = cr.getBlockInfo(this.calcBlock.type);
+      if (
+        shouldVisit(
+          this.neighbors.top,
+          info(this.neighbors.top)
+        )
+      ) this.toVisit.add(this.neighbors.top.index);
+      
+      if (
+        shouldVisit(
+          this.neighbors.bottom,
+          info(this.neighbors.bottom)
+        )
+      ) this.toVisit.add(this.neighbors.bottom.index);
+  
+      if (
+        shouldVisit(
+          this.neighbors.left,
+          info(this.neighbors.left)
+        )
+      ) this.toVisit.add(this.neighbors.left.index);
+  
+      if (
+        shouldVisit(
+          this.neighbors.right,
+          info(this.neighbors.right)
+        )
+      ) this.toVisit.add(this.neighbors.right.index);
     }
     
     //perform updates on visited nodes
@@ -229,7 +283,7 @@ public class Renderer extends JPanel {
       this.c.get(v, this.calcBlock);
       
       //ignore source nodes
-      if (isSource(this.calcBlock)) continue;
+      if (info(this.calcBlock).isSource) continue;
       
       //redstone level
       this.calcBlock.data = 1;

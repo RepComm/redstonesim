@@ -11,6 +11,8 @@ public class Chunk {
   public int height;
   byte[] data;
   
+  boolean changed;
+  
   public Chunk (int w, int h) {
     this.width = w;
     this.height = h;
@@ -19,7 +21,10 @@ public class Chunk {
       w * h * BlockData.byteLength
     ];
     
+    this.changed = true;
+    
   }
+  
   public void setIfEmpty (int x, int y, BlockData d) {
     this.setIfEmpty(x, y, d.type, d.data);
   }
@@ -66,6 +71,7 @@ public class Chunk {
     int bidx = idx * BlockData.byteLength;
     this.data[bidx] = t;
     this.data[bidx+1] = d;
+    this.changed = true;
   }
   public boolean bounded (int x, int y) {
     return (x >= 0 && x < this.width && y >= 0 && y < this.height);
@@ -98,6 +104,10 @@ public class Chunk {
     this.get(x, y+1, out.bottom);
     this.get(x-1, y, out.left);
     this.get(x+1, y, out.right);
-    
+  }
+  public boolean hasChanged () {
+    boolean result = this.changed;
+    this.changed = false;
+    return result;
   }
 }

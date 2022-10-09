@@ -1,12 +1,28 @@
 package comm.rep.json;
 
+import javax.management.StringValueExp;
+import java.lang.reflect.Type;
 import java.util.*;
 
 import static comm.rep.json.Lexer.lex;
 
 public class JSON {
   public static class JsonValue {
-  
+    public JsonObject asObject () {
+      return (JsonObject) this;
+    }
+    public JsonArray asArray () {
+      return (JsonArray) this;
+    }
+    public String asString () {
+      return ((JsonString) this).value;
+    }
+    public double asNumber () {
+      return ((JsonNumber) this).value;
+    }
+    public boolean asBoolean () {
+      return ((JsonBoolean)this).value;
+    }
   }
   
   public static class JsonObject extends JsonValue {
@@ -18,6 +34,13 @@ public class JSON {
     public String toString() {
       return "[Object]";
     }
+    public JsonValue get (String key) {
+      return this.kvPairs.get(key);
+    }
+    public void set (String key, JsonValue v) {
+      this.kvPairs.put(key, v);
+    }
+    public boolean has (String key) {return this.kvPairs.containsKey(key);}
   }
   
   public static class JsonArray extends JsonValue {
@@ -28,6 +51,17 @@ public class JSON {
     @Override
     public String toString() {
       return "[Array]";
+    }
+    
+    public JsonValue get (int index) {
+      return this.items.get(index);
+    }
+    public void set (int index, JsonValue v) {
+      this.items.set(index, v);
+    }
+    
+    public int size () {
+      return this.items.size();
     }
   }
   
@@ -53,6 +87,15 @@ public class JSON {
     @Override
     public String toString() {
       return Double.toString(this.value);
+    }
+  }
+  
+  public static class JsonBoolean extends JsonValue {
+    public boolean value;
+    public JsonBoolean(boolean v) { this.value = v;}
+    public JsonBoolean(String s) { this.value = Boolean.parseBoolean(s);}
+    public String toString () {
+      return Boolean.toString(this.value);
     }
   }
   
@@ -91,6 +134,10 @@ public class JSON {
       sb.deleteCharAt(sb.length()-1);
       
       sb.append("]");
+    } else if (v instanceof JsonBoolean) {
+      var b = (JsonBoolean)v;
+      var s = b.toString();
+      sb.append(s);
     }
     
     return sb.toString();

@@ -82,6 +82,9 @@ public class Lexer {
       charset(s, o, "0123456789");
       if (success(o)) { advance(s, o); result.add(Token.from(s, o, TokenType.NUMBER)); continue; }
       
+      charset(s, o, "abcdefghijklmnopqrstuvwxyz");
+      if (success(o)) { advance(s, o); result.add(Token.from(s, o, TokenType.IDENTIFIER)); continue; }
+  
       break;
     }
     

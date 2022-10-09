@@ -1,17 +1,19 @@
 
 package comm.rep.voxel;
 
+import comm.rep.ui.ContextEx;
 import org.w3c.dom.css.Rect;
 
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.Map;
 
 public class ChunkRenderer {
   
-  private Map<Byte, BlockInfo> blocks;
+  public Map<Byte, BlockInfo> blocks;
   
   private BlockData renderBlock;
   private BlockInfo renderBlockInfo;
@@ -31,59 +33,62 @@ public class ChunkRenderer {
     this.blocks.put(b, bi);
   }
   
-  public boolean createBlock (byte b, String fname, String label) {
-    BlockInfo bi = BlockInfo.create(fname, label);
-    if (bi == null) return false;
-    this.setBlockInfo(b, bi);
-    return true;
+  public BlockInfo registerBlock (String label) {
+    byte b = (byte) this.blocks.size();
+  
+    var bi = new BlockInfo(b, label);
+    setBlockInfo(b, bi);
+    return bi;
   }
   
-  public byte registerBlock (String fname, String label) {
-    byte b = (byte) this.blocks.size();
-    
-    this.createBlock(b, fname, label);
-    
-    return b;
-  }
+  byte getBlockInfoCachedType = -1;
+  BlockInfo getBlockInfoCached;
   
   public BlockInfo getBlockInfo (byte b) {
-    return this.blocks.get(b);
+    if (b == getBlockInfoCachedType) return getBlockInfoCached;
+    getBlockInfoCachedType = b;
+    getBlockInfoCached = this.blocks.get(b);
+    
+    return getBlockInfoCached;
   }
   
   private Rectangle2D borderRect = new Rectangle2D.Float(0,0,1,1);
   
-  public boolean renderBlock (Graphics2D ctx, BlockData d) {
+  public boolean renderBlock (ContextEx ctx, BlockData d) {
     this.renderBlockInfo = this.getBlockInfo(d.type);
+  
+    BufferedImage img;
+    if (this.renderBlockInfo == null) return false;
+    img = this.renderBlockInfo.getImage(d.data);
     
-    if (this.renderBlockInfo == null || this.renderBlockInfo.image == null) return false;
+    if (img == null) return false;
+    int w = img.getWidth();
+    int h = img.getHeight();
     
-    AffineTransform t = ctx.getTransform();
+    ctx.save();
     
-    float sx = 1f/(float)this.renderBlockInfo.image.getWidth();
-    float sy = 1f/(float)this.renderBlockInfo.image.getHeight();
+    float sx = 1f/w;
+    float sy = 1f/h;
     
-    if (this.renderBlock.data > 0) {
-//            ctx.scale(0.9f, 0.9f);
-      ctx.draw(this.borderRect);
-    }
+//    if (this.renderBlock.data > 0) {
+////    if (this.renderBlockInfo.isLine) {
+//      ctx.draw(this.borderRect);
+//    }
     
     ctx.scale(sx, sy);
     
+    ctx.drawImage(img);
     
-    
-    ctx.drawImage(this.renderBlockInfo.image, 0, 0, null);
-    
-    ctx.setTransform(t);
+    ctx.restore();
     return true;
   }
   
-  public void render (Graphics2D ctx, Chunk c) {
+  public void render (ContextEx ctx, Chunk c) {
     AffineTransform t;
     
     for (int x=0; x<c.width; x++) {
       for (int y=0; y<c.height; y++) {
-        //save
-        t = ctx.getTransform();
+        ctx.save();
         
         //get block at coord
         c.get(x, y, this.renderBlock);
@@ -91,13 +96,8 @@ public class ChunkRenderer {
         //display in correct spot
         ctx.translate(x, y);
         
-        //render
-        if (this.renderBlock(ctx, this.renderBlock)) {
-//                    System.out.printf("{ x: %d, y: %d, b:%d }\n", x, y, b);
-        }
-        
-        //restore
-        ctx.setTransform(t);
+        this.renderBlock(ctx, this.renderBlock);
+        ctx.restore();
       }
     }
   }

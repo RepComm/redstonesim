@@ -21,6 +21,11 @@ public class Vec2 {
     this.y = y;
     return this;
   }
+  public Vec2 floor () {
+    this.x = (float)Math.floor(this.x);
+    this.y = (float)Math.floor(this.y);
+    return this;
+  }
   
   /**Uses other vector's same named components, returns self*/
   public Vec2 add(Vec2 other) {

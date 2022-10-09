@@ -6,10 +6,17 @@ import comm.rep.math.Vec2;
 import comm.rep.timer.CallbackTimer;
 import comm.rep.ui.Renderer;
 import comm.rep.voxel.BlockInfo;
+import comm.rep.voxel.ChunkRenderer;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileInputStream;
+import java.net.URI;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 
@@ -19,6 +26,65 @@ import static java.lang.System.out;
 
 public class RedstoneSim {
   
+  public static void loadBlockDefs (ChunkRenderer cr) {
+    try {
+      URL blocksUrl = RedstoneSim.class.getResource("/blocks.json");
+      URI blocksUri = blocksUrl.toURI();
+      File blocksFile = new File(blocksUri);
+      byte[] blocksBytes = Files.readAllBytes(blocksFile.toPath());
+      
+      var src = new String(blocksBytes);
+      
+      //parse
+      var json = JSON.parse(src);
+
+      JSON.JsonArray blocks = json.asObject().get("blocks").asArray();
+      int size = blocks.size();
+      
+      JSON.JsonObject block;
+      String blockLabel;
+      JSON.JsonArray blockImages;
+      String[] blockImageStrings;
+      boolean isLine = false;
+      boolean isSource = false;
+      boolean isDraggable = true;
+      
+      for (int i=0; i<size; i++) {
+        block = blocks.get(i).asObject();
+        
+        blockLabel = block.get("label").asString();
+        
+        if (block.has("images")) {
+          blockImages = block.get("images").asArray();
+          
+          int blockImageCount = blockImages.size();
+          blockImageStrings = new String[blockImageCount];
+          for (int j=0; j<blockImageCount; j++) {
+            blockImageStrings[j] = blockImages.get(j).asString();
+          }
+          isLine = false;
+          isSource = false;
+          isDraggable = true;
+          
+          if (block.has("isLine")) isLine = block.get("isLine").asBoolean();
+          if (block.has("isSource")) isSource = block.get("isSource").asBoolean();
+          if (block.has("isDraggable")) isDraggable = block.get("isDraggable").asBoolean();
+          
+          BlockInfo bi = cr.registerBlock(blockLabel);
+          bi.isSource = isSource;
+          bi.isLine = isLine;
+          bi.isDraggable = isDraggable;
+          bi.addImages(blockImageStrings);
+          
+        } else {
+          cr.registerBlock(blockLabel);
+        }
+      }
+      
+    } catch (Exception e) {
+      System.err.printf("Couldn't load blocks.json: %s\n", e);
+    }
+  }
   public static void main(String[] args) {
     
     JFrame frame = new JFrame("RedstoneSim");
@@ -35,27 +101,8 @@ public class RedstoneSim {
     var dInventory = new JPanel();
     dInventory.setBackground(Color.GRAY);
     content.add(dInventory, BorderLayout.PAGE_END);
-  
-    r.cr.setBlockInfo((byte)0, new BlockInfo("air", null));
-    r.cr.registerBlock("/images/block-rsb.png", "redstone");
-    r.cr.registerBlock("/images/block-wire.png", "wire");
-    r.cr.registerBlock("/images/block-note.png", "note");
     
-//    try {
-//
-//      //source text
-//      String src = "{ \"key\":\"value\", \"nums\": { \"ints\":[1,2,3,4,5,6,7] } }";
-//
-//      //parse
-//      var json = JSON.parse(src);
-//
-//      //stringify
-//      String dst = JSON.stringify(json);
-//
-//      //log
-//      out.printf("Source : %s\nOutput : %s", src, dst);
-//
-//    } catch (Exception e) { System.err.println(e); }
+    loadBlockDefs(r.cr);
     
     for (byte i=0; i<r.cr.blockSize(); i++) {
       final byte fi = i;
@@ -76,7 +123,19 @@ public class RedstoneSim {
       btn.setBackground(Color.GRAY);
       btn.setForeground(Color.WHITE);
       
-      if (b.image != null) btn.setIcon(new ImageIcon(b.image.getScaledInstance(iconSize, iconSize, Image.SCALE_REPLICATE)));
+      BufferedImage img = b.getImage();
+      ImageIcon icon;
+      
+      if (img != null) {
+        icon = new ImageIcon(
+          img.getScaledInstance(
+            iconSize, iconSize,
+            Image.SCALE_REPLICATE
+          )
+        );
+        
+        btn.setIcon(icon);
+      }
       
       mouseListen(btn, (t, e)->{
         if (t == MOUSE_CLICKED) r.blockPlaceType = fi;
